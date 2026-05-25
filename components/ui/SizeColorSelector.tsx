@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { ApiVariant } from "@/lib/api";
+import { useLang } from "@/lib/lang";
+import { formatPrice } from "@/lib/utils";
 
 interface Props {
   sizes?: string[];
@@ -9,6 +11,7 @@ interface Props {
 }
 
 export default function SizeColorSelector({ sizes, colors, variants }: Props) {
+  const { lang } = useLang();
   const [selectedSize,  setSelectedSize]  = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
@@ -86,11 +89,11 @@ export default function SizeColorSelector({ sizes, colors, variants }: Props) {
         <p className="text-sm text-gray-600">
           سعر هذا الاختيار:{" "}
           <span className="font-bold text-gray-900">
-            {selectedVariant.price.toLocaleString("ar-EG")} جنيه
+            {formatPrice(selectedVariant.price, lang)}
           </span>
           {selectedVariant.compare_price > 0 && selectedVariant.compare_price > selectedVariant.price && (
             <span className="line-through text-gray-400 mr-2 text-xs">
-              {selectedVariant.compare_price.toLocaleString("ar-EG")} جنيه
+              {formatPrice(selectedVariant.compare_price, lang)}
             </span>
           )}
         </p>

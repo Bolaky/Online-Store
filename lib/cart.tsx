@@ -51,12 +51,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Persist to localStorage on change
+  // Persist to localStorage on change (بدون فتح السلة)
   useEffect(() => {
     if (!mounted) return;
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(items));
-      window.dispatchEvent(new Event("cartUpdate"));
     } catch {}
   }, [items, mounted]);
 
@@ -76,6 +75,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, { ...newItem, quantity: newItem.quantity || 1 }];
       });
+      window.dispatchEvent(new Event("cartItemAdded"));
     },
     []
   );

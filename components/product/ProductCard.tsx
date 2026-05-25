@@ -68,24 +68,42 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Wishlist button */}
-        <button
-          onClick={handleWishlist}
-          className="absolute top-3 left-3 w-9 h-9 bg-white rounded-full shadow-md flex items-center justify-center transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
-          aria-label="أضف للمفضلة"
-        >
-          <svg
-            className={`w-4 h-4 transition-colors ${wishlisted ? "fill-red-500 text-red-500" : "fill-none text-gray-600"}`}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* Icon buttons row */}
+        <div className="absolute top-3 left-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Wishlist button */}
+          <button
+            onClick={handleWishlist}
+            className="w-9 h-9 bg-white rounded-full shadow-md flex items-center justify-center transition-all duration-200 hover:scale-110"
+            aria-label="أضف للمفضلة"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
+            <svg
+              className={`w-4 h-4 transition-colors ${wishlisted ? "fill-red-500 text-red-500" : "fill-none text-gray-600"}`}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
 
-        {/* Quick view hover bar */}
+          {/* Cart button */}
+          <button
+            className="w-9 h-9 bg-white rounded-full shadow-md flex items-center justify-center transition-all duration-200 hover:scale-110 hover:bg-black hover:text-white"
+            aria-label="أضف للسلة"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 6.293A1 1 0 006 21h12a1 1 0 00.707-.293L17 13M17 13l2-8M9 5a1 1 0 102 0 1 1 0 00-2 0m8 0a1 1 0 102 0 1 1 0 00-2 0" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Order Now hover bar */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-sm font-medium py-3 text-center translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-          عرض سريع
+          اطلب الآن
         </div>
       </div>
 

@@ -6,19 +6,20 @@ import { Category } from "@/types";
 
 interface Props {
   categories: Category[];
+  title?: string;
 }
 
-export default function CategoriesSection({ categories }: Props) {
+export default function CategoriesSection({ categories, title }: Props) {
   if (!categories.length) return null;
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" dir="rtl">
+    <section className="py-12 px-4 sm:px-6 lg:px-8" dir="inherit">
       <div className="text-center mb-10">
         <h2
           className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight"
           style={{ fontFamily: "'Playfair Display', serif" }}
         >
-          تسوق حسب القسم
+          {title}
         </h2>
         <div className="w-12 h-0.5 bg-black mx-auto mt-4" />
       </div>

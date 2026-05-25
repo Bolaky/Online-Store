@@ -1,10 +1,28 @@
 export const WISHLIST_KEY = "store_wishlist";
 
+function normalizeWishlistItem(item: unknown): string {
+  if (typeof item === "string") return item.trim();
+  if (typeof item === "number" || typeof item === "boolean") return String(item).trim();
+  if (item && typeof item === "object") {
+    const obj = item as Record<string, unknown>;
+    const candidate =
+      obj.product_id || obj.productId || obj.id || obj.slug || obj.name;
+    if (typeof candidate === "string") return candidate.trim();
+    if (typeof candidate === "number") return String(candidate).trim();
+  }
+  return "";
+}
+
 export function getWishlist(): string[] {
   if (typeof window === "undefined") return [];
   try {
     const data = localStorage.getItem(WISHLIST_KEY);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeWishlistItem)
+      .filter((item) => item.length > 0);
   } catch {
     return [];
   }

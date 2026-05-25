@@ -11,8 +11,11 @@ export interface ApiProduct {
   sku: string;
   name: string;
   price: number;
+  compare_price?: number;
   category: string;          // category_id زي "CAT-01"
   image: string;
+  images?: Array<string | ApiProductImage>;
+  product_images?: Array<string | ApiProductImage>;
   in_stock: boolean;
   has_variants: boolean;
   total_stock: number;
@@ -42,6 +45,18 @@ export interface ApiProduct {
   seo_description?: string;
   last_order_at?: string;
   last_view_at?: string;
+}
+
+export interface ApiProductImage {
+  product_id?: string;
+  productId?: string;
+  image?: string;
+  image_url?: string;
+  url?: string;
+  src?: string;
+  sort_order?: number;
+  order?: number;
+  display_order?: number;
 }
 
 export interface ApiVariant {
@@ -76,7 +91,7 @@ export interface ApiSettings {
   instagram_url?: string;
   logo_url?: string;
   favicon_url?: string;
-  [key: string]: string | undefined;
+  [key: string]: unknown;
 }
 
 export interface ProductsResponse {
@@ -132,12 +147,28 @@ export async function getProducts(filters?: ProductFilters): Promise<ProductsRes
   };
 }
 
-export async function getProductBySlug(slug: string, lang: "ar" | "en" = "ar"): Promise<ApiProduct> {
-  const data = await apiFetch<{ success: boolean; product: ApiProduct }>(
-    "getProduct",
-    { slug, lang }
-  );
-  return data.product;
+export async function getProductBySlug(
+  identifier: string,
+  lang: "ar" | "en" = "ar"
+): Promise<ApiProduct> {
+  // Try slug lookup first; fallback to product_id only if slug fetch fails.
+  try {
+    const data = await apiFetch<{ success: boolean; product?: ApiProduct; data?: ApiProduct }>(
+      "getProduct",
+      { slug: identifier, lang }
+    );
+    const product = data.product || data.data;
+    if (!product) throw new Error("Product not found");
+    return product;
+  } catch {
+    const fallback = await apiFetch<{ success: boolean; product?: ApiProduct; data?: ApiProduct }>(
+      "getProduct",
+      { product_id: identifier, lang }
+    );
+    const product = fallback.product || fallback.data;
+    if (!product) throw new Error("Product not found");
+    return product;
+  }
 }
 
 export async function getFeaturedProducts(lang: "ar" | "en" = "ar"): Promise<ApiProduct[]> {
@@ -151,9 +182,8 @@ export async function getBestSellers(lang: "ar" | "en" = "ar"): Promise<ApiProdu
 }
 
 export async function getLastPieces(lang: "ar" | "en" = "ar"): Promise<ApiProduct[]> {
-  // آخر القطع = low_stock + in_stock
   const data = await getProducts({ in_stock: true, lang });
-  return data.products.filter((p) => p.low_stock);
+  return data.products;
 }
 
 export async function getProductsByCategory(
@@ -184,6 +214,102 @@ export async function getSettings(lang: "ar" | "en" = "ar"): Promise<ApiSettings
   );
   // ✅ defensive: نضمن إن settings دايماً object
   return (data.settings && typeof data.settings === "object") ? data.settings : {};
+}
+
+// ── Orders ────────────────────────────────────────────────────
+
+export interface CreateOrderItem {
+  product_id:  string;
+  qty:         number;
+  variant_id?: string;
+}
+
+export interface CheckoutQuote {
+  subtotal:     number;
+  shipping_fee: number;
+  cod_fee:      number;
+  total:        number;
+}
+
+export type ShippingRatesPayload = unknown;
+
+export interface CreateOrderInput {
+  phone:                string;
+  secondary_phone?:     string;
+  address:              string;
+  customer_name?:       string;
+  notes?:               string;
+  order_lang?:          "ar" | "en";
+  source?:              string;
+  shipping_governorate?: string;
+  shipping_city?:        string;
+  items:                CreateOrderItem[];
+}
+
+export interface CreateOrderResult {
+  success:      boolean;
+  order_id?:    string;
+  subtotal?:    number;
+  shipping_fee?: number;
+  cod_fee?:     number;
+  total?:       number;
+  profit?:      number;
+  error?:       string;
+}
+
+export async function getCheckoutQuote(
+  items: CreateOrderItem[],
+  governorate: string,
+  city: string,
+  lang: "ar" | "en" = "ar"
+): Promise<CheckoutQuote> {
+  const data = await apiFetch<{ success: boolean; quote: CheckoutQuote }>(
+    "getCheckoutQuote",
+    { items, governorate, city, lang }
+  );
+  return data.quote;
+}
+
+export async function getShippingRates(lang: "ar" | "en" = "ar"): Promise<ShippingRatesPayload> {
+  const actions = ["getShippingRates", "getShippingOptions", "getShippingLocations"];
+
+  for (const action of actions) {
+    try {
+      const data = await apiFetch<Record<string, unknown>>(action, { lang });
+      return (
+        data.shipping_rates ??
+        data.shippingRates ??
+        data.rates ??
+        data.locations ??
+        data.shipping_options ??
+        data.data ??
+        data
+      );
+    } catch {
+      // Try the next common Apps Script action name.
+    }
+  }
+
+  throw new Error("Shipping rates unavailable");
+}
+
+export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
+  const data = await apiFetch<CreateOrderResult & { success: boolean }>(
+    "createOrder",
+    {
+      phone:                 input.phone,
+      secondary_phone:       input.secondary_phone,
+      address:               input.address,
+      customer_name:         input.customer_name,
+      notes:                 input.notes,
+      order_lang:            input.order_lang || "ar",
+      source:                input.source || "website",
+      shipping_governorate:  input.shipping_governorate,
+      shipping_city:         input.shipping_city,
+      items:                 input.items,
+    }
+  );
+  return data;
 }
 
 // ── Track view ────────────────────────────────────────────────

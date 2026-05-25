@@ -1,7 +1,7 @@
 // ============================================================
 // lib/api.server.ts
-// للـ Server Components فقط — بيكلم Apps Script مباشرة
-// الـ API_SECRET محفوظ على السيرفر مش بيوصل للمتصفح
+// Server Components ONLY — calls Apps Script directly.
+// API_SECRET never exposed to browser.
 // ============================================================
 
 import {
@@ -28,7 +28,6 @@ async function serverFetch<T>(
 
   const payload: Record<string, unknown> = { action, ...body };
 
-  // Private actions تحتاج api_secret
   const PRIVATE = ["createOrder","cancelOrder","updateOrderStatus","getOrder","upsertCustomer"];
   if (PRIVATE.includes(action) && API_SECRET) {
     payload.api_secret = API_SECRET;
@@ -49,6 +48,56 @@ async function serverFetch<T>(
   return data as T;
 }
 
+// ── Homepage — single call (quota-efficient) ──────────────────
+
+export interface ApiHeroSection {
+  id:          string;
+  title:       string;
+  subtitle:    string;
+  button_text: string;
+  image:       string;
+  link:        string;
+  sort_order:  number;
+}
+
+export interface ApiOffer {
+  id:         string;
+  content:    string;
+  link:       string;
+  bg_color:   string;
+  text_color: string;
+  priority:   number;
+}
+
+export interface HomepageData {
+  settings:     ApiSettings;
+  categories:   ApiCategory[];
+  hero:         ApiHeroSection[];
+  offers:       ApiOffer[];
+  featured:     ApiProduct[];
+  best_sellers: ApiProduct[];
+  last_pieces:  ApiProduct[];
+}
+
+export async function getHomepageData(
+  lang: "ar" | "en" = "ar"
+): Promise<HomepageData> {
+  const data = await serverFetch<{ success: boolean; data: HomepageData }>(
+    "getHomepageData",
+    { lang, featured_limit: 8, best_seller_limit: 8, last_pieces_limit: 6 }
+  );
+  const d = data.data || {} as Partial<HomepageData>;
+  return {
+    settings:     (d.settings && typeof d.settings === "object") ? d.settings : {},
+    categories:   Array.isArray(d.categories)   ? d.categories   : [],
+    hero:         Array.isArray(d.hero)          ? d.hero         : [],
+    offers:       Array.isArray(d.offers)        ? d.offers       : [],
+    featured:     Array.isArray(d.featured)      ? d.featured     : [],
+    best_sellers: Array.isArray(d.best_sellers)  ? d.best_sellers : [],
+    last_pieces:  Array.isArray(d.last_pieces)   ? d.last_pieces  : [],
+  };
+}
+
 // ── Products ──────────────────────────────────────────────────
 
 export async function getProducts(
@@ -67,14 +116,27 @@ export async function getProducts(
 }
 
 export async function getProductBySlug(
-  slug: string,
+  identifier: string,
   lang: "ar" | "en" = "ar"
 ): Promise<ApiProduct> {
-  const data = await serverFetch<{ success: boolean; product: ApiProduct }>(
+  try {
+    const data = await serverFetch<{ success: boolean; data?: ApiProduct; product?: ApiProduct }>(
+      "getProduct",
+      { slug: identifier, lang }
+    );
+    const product = (data as any).data || (data as any).product;
+    if (product) return product;
+  } catch {
+    // fallback below
+  }
+
+  const fallback = await serverFetch<{ success: boolean; data?: ApiProduct; product?: ApiProduct }>(
     "getProduct",
-    { slug, lang }
+    { product_id: identifier, lang }
   );
-  return data.product;
+  const product = (fallback as any).data || (fallback as any).product;
+  if (!product) throw new Error("Product not found");
+  return product;
 }
 
 export async function getFeaturedProducts(
@@ -94,8 +156,9 @@ export async function getBestSellers(
 export async function getLastPieces(
   lang: "ar" | "en" = "ar"
 ): Promise<ApiProduct[]> {
+  // ✅ Backend filters low_stock — frontend does NOT derive this
   const data = await getProducts({ in_stock: true, lang });
-  return data.products.filter((p) => p.low_stock);
+  return data.products.filter((p) => p.low_stock === true);
 }
 
 export async function getProductsByCategory(
@@ -127,5 +190,5 @@ export async function getSettings(
     success: boolean;
     settings: ApiSettings;
   }>("getSettings", { lang });
-  return typeof data.settings === "object" ? data.settings : {};
+  return (data.settings && typeof data.settings === "object") ? data.settings : {};
 }

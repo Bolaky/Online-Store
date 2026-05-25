@@ -1,22 +1,30 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
+import { getWishlist } from "@/lib/wishlist";
 import { useLang } from "@/lib/lang";
+import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_PLACEHOLDER_IMAGE_URL } from "@/lib/constants";
+import CategoriesDrawer from "@/components/layout/CategoriesDrawer";
+import { Category } from "@/types";
 
 interface NavbarProps {
-  categories: { id: string; name: string; slug: string }[];
+  categories: Category[];
+  storeName?:  string;
 }
 
-export default function Navbar({ categories }: NavbarProps) {
+export default function Navbar({ categories, storeName = "متجر" }: NavbarProps) {
   const [scrolled,     setScrolled]     = useState(false);
+  const [catOpen,      setCatOpen]      = useState(false);
   const [menuOpen,     setMenuOpen]     = useState(false);
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [searchQuery,  setSearchQuery]  = useState("");
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartOpen,     setCartOpen]     = useState(false);
-  const { lang, toggleLang } = useLang();
+  const { lang, toggleLang, t } = useLang();
+  const router = useRouter();
 
   const { count: cartCount, items, removeItem, updateQty, total } = useCart();
 
@@ -28,22 +36,28 @@ export default function Navbar({ categories }: NavbarProps) {
 
   useEffect(() => {
     const update = () => {
-      try {
-        const wl = JSON.parse(localStorage.getItem("store_wishlist") || "[]");
-        setWishlistCount(wl.length);
-      } catch {}
+      setWishlistCount(getWishlist().length);
     };
     update();
     window.addEventListener("wishlistUpdate", update);
     return () => window.removeEventListener("wishlistUpdate", update);
   }, []);
 
+  useEffect(() => {
+    const openCart = () => setCartOpen(true);
+    window.addEventListener("cartItemAdded", openCart);
+    return () => window.removeEventListener("cartItemAdded", openCart);
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      setSearchOpen(false);
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
+
+  const dir = lang === "ar" ? "rtl" : "ltr";
 
   return (
     <>
@@ -53,12 +67,24 @@ export default function Navbar({ categories }: NavbarProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
 
-            {/* Left: hamburger + desktop nav */}
-            <div className="flex items-center gap-6">
+            {/* Left: categories + mobile menu */}
+            <div className="flex items-center gap-3">
               <button
+                type="button"
+                onClick={() => setCatOpen(true)}
+                className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black border border-gray-200 rounded-full px-3 py-1.5 hover:border-black transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <span className="hidden sm:inline">{t("categories")}</span>
+              </button>
+
+              <button
+                type="button"
                 className="md:hidden text-gray-700 hover:text-black transition-colors"
                 onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="القائمة"
+                aria-label={t("menu")}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {menuOpen
@@ -66,23 +92,13 @@ export default function Navbar({ categories }: NavbarProps) {
                     : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
                 </svg>
               </button>
-
-              <div className="hidden md:flex items-center gap-6">
-                {categories.map((cat) => (
-                  <Link key={cat.id} href={`/category/${cat.slug}`}
-                    className="text-sm font-medium text-gray-700 hover:text-black transition-colors relative group">
-                    {cat.name}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-black transition-all group-hover:w-full" />
-                  </Link>
-                ))}
-              </div>
             </div>
 
             {/* Center: Logo */}
             <Link href="/"
-              className="absolute left-1/2 -translate-x-1/2 text-2xl md:text-3xl font-black tracking-tighter text-black"
+              className="absolute left-1/2 -translate-x-1/2 text-xl md:text-2xl lg:text-3xl font-black tracking-tighter text-black max-w-[40%] truncate text-center"
               style={{ fontFamily: "'Playfair Display', serif" }}>
-              مصري
+              {storeName}
             </Link>
 
             {/* Right: icons */}
@@ -91,7 +107,7 @@ export default function Navbar({ categories }: NavbarProps) {
               <button
                 onClick={() => toggleLang()}
                 className="text-xs font-bold text-gray-600 hover:text-black transition-colors border border-gray-200 rounded-full px-2.5 py-1 hover:border-black"
-                aria-label="تغيير اللغة"
+                aria-label={t("changeLang")}
               >
                 {lang === "ar" ? "EN" : "عر"}
               </button>
@@ -100,7 +116,7 @@ export default function Navbar({ categories }: NavbarProps) {
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="text-gray-700 hover:text-black transition-colors"
-                aria-label="بحث"
+                aria-label={t("search")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -109,7 +125,7 @@ export default function Navbar({ categories }: NavbarProps) {
               </button>
 
               {/* Wishlist */}
-              <Link href="/wishlist" className="relative text-gray-700 hover:text-black transition-colors" aria-label="المفضلة">
+              <Link href="/wishlist" className="relative text-gray-700 hover:text-black transition-colors" aria-label={t("wishlist")}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -125,7 +141,7 @@ export default function Navbar({ categories }: NavbarProps) {
               <button
                 onClick={() => setCartOpen(true)}
                 className="relative text-gray-700 hover:text-black transition-colors"
-                aria-label="السلة"
+                aria-label={t("cart")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -147,9 +163,9 @@ export default function Navbar({ categories }: NavbarProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ابحث عن منتج..."
-                className="w-full border border-gray-200 rounded-full py-2.5 pr-10 pl-4 text-sm focus:outline-none focus:border-black transition-colors text-right"
-                dir="rtl"
+                placeholder={t("searchPlaceholder")}
+                className="w-full border border-gray-200 rounded-full py-2.5 pr-10 pl-4 text-sm focus:outline-none focus:border-black transition-colors"
+                dir={dir}
               />
               <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,21 +178,29 @@ export default function Navbar({ categories }: NavbarProps) {
         </div>
       </nav>
 
+      <CategoriesDrawer
+        open={catOpen}
+        onClose={() => setCatOpen(false)}
+        categories={categories}
+      />
+
       {/* Mobile menu */}
       <div className={`fixed inset-0 z-40 md:hidden transition-all duration-300 ${menuOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}>
         <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)} />
-        <div className={`absolute top-0 right-0 h-full w-72 bg-white shadow-2xl transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"}`}>
+        <div className={`absolute top-0 h-full w-72 bg-white shadow-2xl transition-transform duration-300 ${
+          lang === "ar" ? "right-0" : "left-0"
+        } ${menuOpen ? "translate-x-0" : lang === "ar" ? "translate-x-full" : "-translate-x-full"}`}>
           <div className="p-6 pt-20">
-            <p className="text-xs text-gray-400 uppercase tracking-widest mb-4">الأقسام</p>
+            <p className="text-xs text-gray-400 uppercase tracking-widest mb-4">{t("categories")}</p>
             <nav className="flex flex-col gap-1">
               <Link href="/" onClick={() => setMenuOpen(false)}
-                className="py-3 px-4 rounded-xl text-gray-700 hover:bg-gray-50 hover:text-black transition-all font-medium text-right">
-                الرئيسية
+                className={`py-3 px-4 rounded-xl text-gray-700 hover:bg-gray-50 hover:text-black transition-all font-medium ${lang === "ar" ? "text-right" : "text-left"}`}>
+                {t("home")}
               </Link>
               {categories.map((cat) => (
                 <Link key={cat.id} href={`/category/${cat.slug}`}
                   onClick={() => setMenuOpen(false)}
-                  className="py-3 px-4 rounded-xl text-gray-700 hover:bg-gray-50 hover:text-black transition-all font-medium text-right">
+                  className={`py-3 px-4 rounded-xl text-gray-700 hover:bg-gray-50 hover:text-black transition-all font-medium ${lang === "ar" ? "text-right" : "text-left"}`}>
                   {cat.name}
                 </Link>
               ))}
@@ -189,11 +213,15 @@ export default function Navbar({ categories }: NavbarProps) {
       {cartOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setCartOpen(false)} />
-          <div className="fixed top-0 left-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col" dir="rtl">
+          <div className={`fixed top-0 h-full w-full max-w-md bg-white z-50 shadow-2xl flex flex-col ${lang === "ar" ? "left-0" : "right-0"}`} dir={dir}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <h2 className="text-lg font-black text-gray-900">
-                سلة الشراء
-                {cartCount > 0 && <span className="mr-2 text-sm font-normal text-gray-500">({cartCount} منتج)</span>}
+                {t("cart")}
+                {cartCount > 0 && (
+                  <span className={`${lang === "ar" ? "mr-2" : "ml-2"} text-sm font-normal text-gray-500`}>
+                    ({cartCount} {t("products")})
+                  </span>
+                )}
               </h2>
               <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-black text-2xl leading-none">×</button>
             </div>
@@ -204,7 +232,7 @@ export default function Navbar({ categories }: NavbarProps) {
                   <svg className="w-16 h-16 mx-auto text-gray-200 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 14H4L5 9z" />
                   </svg>
-                  <p className="text-gray-400 text-sm">السلة فارغة</p>
+                  <p className="text-gray-400 text-sm">{t("cartEmpty")}</p>
                 </div>
               ) : (
                 items.map((item) => (
@@ -218,7 +246,8 @@ export default function Navbar({ categories }: NavbarProps) {
                         <p className="text-xs text-gray-400 mt-1">{[item.color, item.size].filter(Boolean).join(" — ")}</p>
                       )}
                       <p className="text-sm font-bold text-gray-900 mt-1">
-                        {(item.price * item.quantity).toLocaleString("ar-EG")} جنيه
+                        {formatCurrency(item.price * item.quantity, lang)}{" "}
+                        {lang === "ar" ? "جنيه" : "EGP"}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <button onClick={() => updateQty(item.productId, item.variantId, item.quantity - 1)}
@@ -242,12 +271,15 @@ export default function Navbar({ categories }: NavbarProps) {
             {items.length > 0 && (
               <div className="px-6 py-5 border-t border-gray-100 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">الإجمالي</span>
-                  <span className="text-xl font-black text-gray-900">{total.toLocaleString("ar-EG")} جنيه</span>
+                  <span className="text-sm text-gray-500">{t("total")}</span>
+                  <span className="text-xl font-black text-gray-900">
+                    {formatCurrency(total, lang)}{" "}
+                    {lang === "ar" ? "جنيه" : "EGP"}
+                  </span>
                 </div>
                 <Link href="/checkout" onClick={() => setCartOpen(false)}
                   className="block w-full bg-black text-white text-center font-bold py-4 rounded-full hover:bg-gray-800 transition-colors text-sm">
-                  إتمام الطلب
+                  {t("checkout")}
                 </Link>
               </div>
             )}

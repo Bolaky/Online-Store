@@ -2,18 +2,22 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { normalizeImageUrl } from "@/lib/images";
 import { useCart } from "@/lib/cart";
+import { useLang } from "@/lib/lang";
+import { productPath } from "@/lib/product-url";
+import { formatCurrency } from "@/lib/utils";
 import { DEFAULT_PLACEHOLDER_IMAGE_URL } from "@/lib/constants";
 
 export default function CartDrawer() {
   const { items, count, total, removeItem, updateQty, clearCart } = useCart();
+  const { lang } = useLang();
   const [open, setOpen] = useState(false);
 
-  // افتح الـ drawer لما يضيف item
   useEffect(() => {
     const handler = () => setOpen(true);
-    window.addEventListener("cartUpdate", handler);
-    return () => window.removeEventListener("cartUpdate", handler);
+    window.addEventListener("cartItemAdded", handler);
+    return () => window.removeEventListener("cartItemAdded", handler);
   }, []);
 
   return (
@@ -88,10 +92,10 @@ export default function CartDrawer() {
               <div key={`${item.productId}_${item.variantId}`}
                 className="flex gap-4 pb-4 border-b border-gray-50 last:border-0">
                 {/* Image */}
-                <Link href={`/product/${item.slug}`} onClick={() => setOpen(false)}>
+                <Link href={productPath({ slug: item.slug, id: item.productId })} onClick={() => setOpen(false)}>
                   <div className="relative w-20 h-24 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                     <Image
-                      src={item.image || DEFAULT_PLACEHOLDER_IMAGE_URL}
+                      src={normalizeImageUrl(item.image)}
                       alt={item.name}
                       fill
                       className="object-cover"
@@ -103,7 +107,7 @@ export default function CartDrawer() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <Link
-                    href={`/product/${item.slug}`}
+                    href={productPath({ slug: item.slug, id: item.productId })}
                     onClick={() => setOpen(false)}
                     className="text-sm font-semibold text-gray-900 hover:text-black line-clamp-2"
                   >
@@ -115,7 +119,7 @@ export default function CartDrawer() {
                     </p>
                   )}
                   <p className="text-sm font-bold text-gray-900 mt-1">
-                    {(item.price * item.quantity).toLocaleString("ar-EG")} جنيه
+                    {formatCurrency(item.price * item.quantity, lang)} {lang === "ar" ? "جنيه" : "EGP"}
                   </p>
 
                   {/* Qty controls */}
@@ -153,9 +157,9 @@ export default function CartDrawer() {
         {items.length > 0 && (
           <div className="px-6 py-5 border-t border-gray-100 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">الإجمالي</span>
+              <span className="text-sm text-gray-500">{lang === "ar" ? "الإجمالي" : "Total"}</span>
               <span className="text-xl font-black text-gray-900">
-                {total.toLocaleString("ar-EG")} جنيه
+                {formatCurrency(total, lang)} {lang === "ar" ? "جنيه" : "EGP"}
               </span>
             </div>
             <Link
